@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>淺草風神籤</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 Noto Serif JP 與 TC 以呈現日式與漢文美感 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@300;500;700&family=Noto+Serif+TC:wght@300;500;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --shrine-red: #C62828;
+            --shrine-wood: #5D4037;
+            --shrine-wood-dark: #3E2723;
+            --shrine-wood-light: #8D6E63;
+            --paper-white: #F9F7F2;
+            --ink-black: #2c2c2c;
+        }
+
+        body {
+            font-family: 'Noto Serif JP', 'Noto Serif TC', serif;
+            background-color: #f0f0f0;
+            background-image: radial-gradient(#e0e0e0 1px, transparent 1px);
+            background-size: 20px 20px;
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        /* 隱藏 Scrollbar 但保留功能 */
+        * {
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+        *::-webkit-scrollbar {
+            display: none;
+        }
+
+        /* 籤筒 */
+        .kuji-container {
+            perspective: 1000px;
+            cursor: pointer;
+            transition: transform 0.2s;
+            margin-bottom: 2rem;
+            position: relative;
+            z-index: 30;
+        }
+        
+        .kuji-container:hover {
+            transform: translateY(-5px);
+        }
+
+        .kuji-box {
+            width: 160px;
+            height: 260px;
+            background: linear-gradient(90deg, #6D4C41 0%, #8D6E63 20%, #5D4037 50%, #8D6E63 80%, #6D4C41 100%);
+            position: relative;
+            border-radius: 4px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.4), inset 0 0 30px rgba(0,0,0,0.6);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            z-index: 10;
+        }
+
+        .kuji-label {
+            background-color: var(--paper-white);
+            padding: 15px 10px;
+            writing-mode: vertical-rl;
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: var(--ink-black);
+            border: 3px solid var(--ink-black);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            letter-spacing: 0.3em;
+        }
+
+        .kuji-top {
+            position: absolute;
+            top: -20px;
+            left: 0;
+            width: 100%;
+            height: 40px;
+            background: #4E342E;
+            border-radius: 50%;
+            box-shadow: 0 5px 5px rgba(0,0,0,0.3);
+            z-index: 5;
+        }
+        
+        .kuji-hole {
+            position: absolute;
+            top: -5px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 20px;
+            height: 12px;
+            background-color: #1a1a1a;
+            border-radius: 50%;
+            z-index: 6;
+            box-shadow: inset 0 0 5px rgba(0,0,0,0.8);
+        }
+
+        /* 籤棒 */
+        .stick {
+            position: absolute;
+            left: 50%;
+            top: 0;
+            transform: translateX(-50%) translateY(0);
+            width: 10px;
+            height: 180px;
+            background: #EFEBE9;
+            border-radius: 2px;
+            z-index: 4;
+            transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            opacity: 0;
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+            border: 1px solid #d7ccc8;
+        }
+
+        .stick-text {
+            font-size: 12px;
+            writing-mode: vertical-rl;
+            margin-top: 12px;
+            color: #C62828;
+            font-weight: bold;
+            letter-spacing: 2px;
+        }
+
+        /* 搖晃動畫 */
+        @keyframes shake {
+            0% { transform: rotate(0deg); }
+            20% { transform: rotate(-5deg); }
+            40% { transform: rotate(5deg); }
+            60% { transform: rotate(-5deg); }
+            80% { transform: rotate(5deg); }
+            100% { transform: rotate(0deg); }
+        }
+
+        .shaking {
+            animation: shake 0.8s cubic-bezier(.36,.07,.19,.97) both;
+        }
+
+        /* Modal 遮罩 */
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(5px);
+            z-index: 50;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.5s ease;
+        }
+
+        .overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        /* 卷軸容器 */
+        .scroll-container {
+            position: relative;
+            width: 90%;
+            max-width: 380px;
+            height: auto;
+            max-height: 85vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transform: scaleY(0);
+            transform-origin: center;
+            transition: transform 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .overlay.active .scroll-container {
+            transform: scaleY(1);
+        }
+
+        /* 卷軸上下桿 */
+        .scroll-roller-top, .scroll-roller-bottom {
+            width: calc(100% + 40px);
+            height: 36px;
+            background: linear-gradient(to bottom, #5D4037 0%, #8D6E63 40%, #3E2723 100%);
+            border-radius: 4px;
+            position: relative;
+            z-index: 20;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.4);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .scroll-roller-top::before, .scroll-roller-top::after,
+        .scroll-roller-bottom::before, .scroll-roller-bottom::after {
+            content: '';
+            width: 12px;
+            height: 28px;
+            background: #3E2723;
+            border-radius: 2px;
+            margin: 0 4px;
+            box-shadow: inset 0 0 2px rgba(0,0,0,0.8);
+        }
+        
+        .roller-highlight {
+            position: absolute;
+            top: 10%;
+            left: 10px;
+            right: 10px;
+            height: 2px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 2px;
+        }
+
+        /* 卷軸紙張 */
+        .scroll-paper {
+            width: 100%;
+            background-color: var(--paper-white);
+            color: var(--ink-black);
+            position: relative;
+            padding: 35px 24px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.2);
+            overflow-y: auto;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.5' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23noise)' opacity='0.08'/%3E%3C/svg%3E");
+            background: linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, transparent 20px, transparent calc(100% - 20px), rgba(0,0,0,0.1) 100%), var(--paper-white);
+        }
+
+        /* 內容樣式 */
+        .omikuji-content {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .kuji-number {
+            font-size: 1.1rem;
+            margin-bottom: 0.5rem;
+            color: #666;
+            letter-spacing: 0.1em;
+            text-align: center;
+            width: 100%;
+        }
+
+        .kuji-rank {
+            font-size: 3.2rem;
+            font-weight: 900;
+            color: var(--shrine-red);
+            margin-bottom: 1.5rem;
+            font-family: "Noto Serif TC", serif;
+            line-height: 1;
+            text-shadow: 1px 1px 0 rgba(0,0,0,0.1);
+            text-align: center;
+            width: 100%;
+        }
+        
+        .poem-container {
+            width: 100%;
+            background-color: rgba(255,255,255,0.4);
+            border: 1px solid rgba(0,0,0,0.05);
+            padding: 20px 15px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .poem-section {
+            display: flex;
+            flex-direction: row-reverse;
+            gap: 1.2rem;
+        }
+
+        .poem-line {
+            writing-mode: vertical-rl;
+            font-size: 1.1rem;
+            line-height: 1.4;
+            letter-spacing: 0.15em;
+            height: 140px;
+            font-weight: 500;
+            font-family: "Noto Serif TC", serif;
+        }
+
+        .poem-explanation {
+            width: 100%;
+            font-size: 0.95rem;
+            color: #444;
+            line-height: 1.8;
+            text-align: justify;
+            padding: 0 10px;
+            margin-bottom: 20px;
+        }
+        
+        .explanation-title {
+            font-weight: 700;
+            color: var(--shrine-wood);
+            margin-bottom: 6px;
+            font-size: 1rem;
+            text-align: center;
+        }
+
+        /* 詳細運勢網格 - 對齊修正 */
+        .details-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            width: 85%;
+            max-width: 300px;
+            margin: 0 auto;
+            padding-top: 15px;
+            border-top: 1px solid #ccc;
+            font-size: 0.9rem;
+        }
+
+        .detail-item {
+            display: flex;
+            align-items: baseline;
+            line-height: 1.5;
+        }
+
+        .detail-label {
+            width: 4.5em;
+            flex-shrink: 0;
+            font-weight: 700;
+            color: var(--shrine-wood);
+            margin-right: 12px;
+            text-align: justify;
+            text-align-last: justify;
+        }
+        
+        .detail-text {
+            color: #333;
+            text-align: left;
+            flex-grow: 1;
+        }
+
+        .close-btn {
+            margin-top: 30px;
+            padding: 8px 40px;
+            background-color: var(--shrine-red);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 1rem;
+            letter-spacing: 0.1em;
+            transition: transform 0.1s, background 0.2s;
+            box-shadow: 0 3px 8px rgba(0,0,0,0.2);
+        }
+        
+        .close-btn:hover {
+            background-color: #b71c1c;
+            transform: translateY(-1px);
+        }
+
+        /* 背景特效 */
+        .mist-bg {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            z-index: -1;
+            opacity: 0.4;
+            background: radial-gradient(circle at 50% 50%, rgba(255,255,255,0) 0%, rgba(255,255,255,0.8) 60%);
+            pointer-events: none;
+        }
+        
+        .sakura {
+            position: absolute;
+            color: #ffcdd2;
+            font-family: serif;
+            opacity: 0.6;
+            z-index: 0;
+            user-select: none;
+            animation: float 6s ease-in-out infinite;
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            50% { transform: translateY(-10px) rotate(10deg); }
+        }
+
+    </style>
+</head>
+<body class="flex flex-col justify-center items-center relative">
+
+    <div class="mist-bg"></div>
+    <div class="sakura" style="top: 15%; left: 10%; font-size: 24px; animation-delay: 0s;">❀</div>
+    <div class="sakura" style="top: 25%; right: 12%; font-size: 20px; animation-delay: 1s;">❀</div>
+    <div class="sakura" style="bottom: 20%; left: 15%; font-size: 22px; animation-delay: 2s;">❀</div>
+    <div class="sakura" style="bottom: 10%; right: 20%; font-size: 18px; animation-delay: 3s;">❀</div>
+
+    <!-- 主要互動區域 -->
+    <div class="relative flex flex-col items-center z-20 w-full max-w-md px-4">
+        <!-- 籤筒 -->
+        <div class="kuji-container" id="kujiContainer" onclick="drawOmikuji()">
+            <div class="stick" id="stick">
+                <span class="stick-text" id="stickText"></span>
+            </div>
+            <div class="kuji-box">
+                <div class="kuji-top"></div>
+                <div class="kuji-hole"></div>
+                <div class="kuji-label">浅草觀音</div>
+            </div>
+        </div>
+
+        <!-- 提示 -->
+        <div class="text-center opacity-90">
+            <p class="text-xl font-bold text-stone-700 tracking-[0.2em] mb-2 drop-shadow-sm" style="font-family: 'Noto Serif TC', serif;">心中默念祈願</p>
+            <div class="h-px w-24 bg-stone-400 mx-auto mb-2 opacity-50"></div>
+            <p class="text-sm text-stone-500 tracking-widest">輕觸籤筒 誠心抽籤</p>
+        </div>
+    </div>
+
+    <!-- 籤詩 Modal -->
+    <div class="overlay" id="overlay">
+        <div class="scroll-container">
+            <div class="scroll-roller-top"><div class="roller-highlight"></div></div>
+            
+            <div class="scroll-paper">
+                <div class="omikuji-content" id="resultContent"></div>
+                <button class="close-btn" onclick="closeResult()">收起籤詩</button>
+            </div>
+            
+            <div class="scroll-roller-bottom"><div class="roller-highlight"></div></div>
+        </div>
+    </div>
+
+    <script>
+        // 壓縮的籤詩資料：[番號, 吉凶, 詩句(以|分隔), 簡解, 細項(願望|疾病|失物|等待的人|搬家|旅行)]
+        // 這是基於淺草寺觀音百籤的公開資料
+        const rawData = [
+            [1, "大吉", "七寶浮圖塔|高峰頂上安|眾人皆仰望|莫作等閒看", "如同七寶塔般才德兼備，立於高峰受人景仰。非比尋常，持續精進。", "心想事成|漸漸康復|能夠找回|將會出現|大吉大利|一路平安"],
+            [2, "小吉", "月被浮雲翳|立事自昏迷|幸乞陰公祐|何慮不開眉", "月亮被雲遮蔽，事情混沌不明。但若多積陰德，自有神明保佑，不用擔心。", "誠心則靈|需多調養|耐心尋找|遲些出現|暫緩為宜|近處吉利"],
+            [3, "凶", "愁惱損忠良|青霄一炷香|雖然防小過|閒慮覺時長", "煩惱會損害身心。雖燒香祈禱，但若不謹慎言行，焦慮的日子會很長。", "難以如願|恐會拖延|難以尋回|不會出現|不宜變動|恐有阻礙"],
+            [4, "吉", "累有興雲志|君恩祿未封|若逢侯手印|好事始總總", "雖有壯志但時機未到。若得到貴人（侯手印）提拔，好事便會接踵而來。", "晚成大器|遇良醫癒|有人報信|即將到來|吉利|吉"],
+            [5, "凶", "家道未能昌|危危保禍殃|暗雲侵月桂|佳人一炷香", "家運目前不昌隆，且有危機。如同烏雲遮月，只能誠心祈禱保平安。", "難成|拖延|難尋|不來|守舊|不利"],
+            [6, "末吉", "宅墓鬼凶多|人事有爻訛|傷財防損失|祈福始中和", "家宅不安，人際有糾紛。需防破財，多祈福行善才能轉危為安。", "阻礙多|長久|難見|遲|凶|不好"],
+            [7, "凶", "登舟待便風|月色暗矇矓|欲碾香輪去|高山千萬重", "想乘船卻無風，月色不明。前路如高山重重，困難重重。", "不成|險|無|杳無音訊|不宜|阻"],
+            [8, "大吉", "會有金門客|愛君如寶珍|利名皆得意|遠大世間人", "將遇貴人視如珍寶。名利雙收，將成為世間有大成就之人。", "大吉|即癒|即出|即來|大吉|大吉"],
+            [9, "大吉", "有名須得遇|三望一朝遷|貴人來指處|華果應時鮮", "名聲顯揚，願望達成。得貴人指點，如花果應時綻放般美好。", "如意|早癒|自出|即來|吉|吉"],
+            [10, "凶", "舊用多成破|新更始見財|改求雲外望|枯木遇春開", "守舊則破敗，創新才見財。眼光放遠，如枯木逢春般等待生機。", "更改吉|難癒|難|遲|吉|吉"],
+            [11, "吉", "有祿興家業|文華達帝都|雲中乘好箭|兼得貴人扶", "家業興隆，才華受肯定。如箭射雲中，又有貴人相助，前程似錦。", "成|癒|出|來|吉|吉"],
+            [12, "大吉", "楊柳遇春時|殘花發舊枝|重重霜雪裡|黃金色更輝", "枯木逢春，舊枝開花。歷經霜雪考驗，如黃金般更加耀眼。", "大成|癒|出|來|吉|吉"],
+            [13, "吉", "手把太陽輝|東君發舊枝|稼苗方欲秀|猶更上雲梯", "手中掌握光輝，枯枝發芽。苗木正秀，更上一層樓，步步高升。", "成|癒|出|來|吉|吉"],
+            [14, "凶", "玉石未分時|憂心轉更悲|前途通大道|花發應殘枝", "玉石不分，憂心忡忡。雖有大道，但如殘枝開花，恐不長久。", "難|拖|難|不來|凶|凶"],
+            [15, "凶", "年乖數亦孤|久病未能蘇|岸危舟未發|龍臥失明珠", "時運不濟，孤立無援。久病難癒，如龍失明珠，進退維谷。", "不成|危|難|無|凶|凶"],
+            [16, "大吉", "破改重成望|前途喜亦寧|貴人相助處|祿馬照前程", "破舊立新，前途喜慶安寧。得貴人助，福祿雙全。", "大成|癒|出|來|吉|吉"],
+            [17, "凶", "怪異防憂惱|人宅見分離|惜花還值雨|杯酒惹閑非", "怪事憂惱，人宅分離。惜花卻遇雨，酒後惹是非，需謹慎。", "難|長|無|不來|凶|凶"],
+            [18, "吉", "離暗出明時|麻衣變綠衣|舊憂終是退|遇祿應交輝", "脫離黑暗見光明，貧賤變富貴。舊憂消退，福祿光輝。", "成|癒|出|來|吉|吉"],
+            [19, "末吉", "家道生荊棘|兒孫防虎威|香前祈福厚|方得免分離", "家道艱難，防子孫惹禍。誠心祈福，方能免於分離之苦。", "難|拖|難|遲|守|不宜"],
+            [20, "吉", "月出漸分明|家財每每興|何言先有滯|更變立功名", "月出光明，家財漸興。雖曾停滯，變通後可立功名。", "成|癒|出|來|吉|吉"],
+            [21, "吉", "洗出經年否|光華得再清|所求終吉利|重日照前程", "洗去多年霉氣，光華再現。所求吉利，前程如日中天。", "成|癒|出|來|吉|吉"],
+            [22, "吉", "漸漸濃雲散|看看月再明|逢春華果秀|雨過竹重青", "雲散月明，苦盡甘來。逢春花果秀，雨過竹更青。", "成|癒|出|來|吉|吉"],
+            [23, "吉", "紅雲隨步起|一箭中青霄|鹿行千里遠|爭知去路遙", "吉兆隨行，一舉成名。雖路途遙遠，但前程遠大。", "成|癒|出|來|吉|吉"],
+            [24, "凶", "肘後道符靈|匣中劍有聲|雖然常得勝|爭奈有金兵", "雖有本領（符靈劍鳴），常得勝，但強中自有強中手，恐遇強敵。", "難|險|難|不來|凶|凶"],
+            [25, "吉", "克日事成功|前途發舊崇|口書言信至|炎火欲燒空", "近日成功，祖德庇佑。喜信將至，氣勢如火燎原。", "成|癒|出|來|吉|吉"],
+            [26, "吉", "將軍有異聲|進兵萬里程|爭知臨敵處|道貌卻和平", "將軍威名遠播，萬里長征。臨敵時卻以和為貴，不戰而屈人之兵。", "成|癒|出|來|吉|吉"],
+            [27, "凶", "家舍防憂患|笙歌惹禍胎|身如浮水萍|口舌引官災", "家有憂患，享樂惹禍。身不由己，口舌招官司。", "不成|凶|無|不來|凶|凶"],
+            [28, "凶", "若是名利客|須防月半深|不宜行此事|只可暫寬心", "求名利者，月中防變。不宜妄動，暫且寬心等待。", "難|拖|難|遲|守|凶"],
+            [29, "吉", "寶劍出匣時|匣中應不留|貴人相接引|名利逐無休", "寶劍出匣，鋒芒畢露。貴人接引，名利雙收。", "成|癒|出|來|吉|吉"],
+            [30, "凶", "仙鶴立高枝|防他暗箭虧|井畔剛刀利|戶內更防危", "雖處高位，防暗箭傷人。處境危險，家中更需防範。", "難|險|難|不來|凶|凶"],
+            [31, "末吉", "鯤鯨未變時|且守碧潭溪|風雲興巨浪|一息過天涯", "大魚未變鳥，暫守溪潭。待風雲起，一氣飛越天涯。", "待時|拖|遲|遲|守|吉"],
+            [32, "吉", "似玉藏深石|休將故眼看|一朝良匠別|方見寶光寒", "玉藏石中，莫眼拙。待良匠開鑿，方見寶光閃耀。", "晚成|癒|出|來|吉|吉"],
+            [33, "吉", "枯木逢春艷|芳菲再發林|雲間方見月|前遇貴人欽", "枯木逢春，林間花開。雲開見月，得貴人欽重。", "成|癒|出|來|吉|吉"],
+            [34, "大吉", "出入行藏禮|松梢鶴並棲|風高飛一舉|萬里快雲蹄", "行事有禮，如鶴棲松。趁風高飛，萬里疾馳。", "大吉|癒|出|來|吉|吉"],
+            [35, "吉", "射鹿須乘箭|故僧引路歸|遇道同仙籍|光華映晚輝", "射鹿乘機，得人指路。與高人同遊，晚景光華。", "成|癒|出|來|吉|吉"],
+            [36, "末吉", "先凶後吉時|崇山深處基|一箭中紅粉|名利好相隨", "先苦後甘，根基深厚。一擊必中，名利相隨。", "漸好|漸癒|遲|遲|吉|吉"],
+            [37, "半吉", "陰慮未消融|雖危未害終|一舟過大江|更藉一帆風", "憂慮未消，雖危無害。如舟渡江，還需順風相助。", "待時|漸癒|難|遲|吉|吉"],
+            [38, "半吉", "月照天書靜|雲生霧彩霞|久想離庭客|一朝復舊家", "月照文書，雲生彩霞。離家遊子，終將歸鄉團聚。", "成|癒|出|來|吉|吉"],
+            [39, "凶", "望用何多滯|移居未得安|層層多阻隔|心腹恐相干", "所求多滯，移居不安。阻隔重重，恐傷心腹。", "難|拖|難|不來|凶|凶"],
+            [40, "小吉", "中間成喜事|精神事大亨|舊憂都不覺|漸更有前程", "喜事將成，精神大振。舊憂盡忘，前程漸好。", "成|癒|出|來|吉|吉"],
+            [41, "末吉", "有物不周旋|須防損本源|榮華如夢電|且待月團圓", "物資不周，防損本源。榮華如夢，且待時機圓滿。", "守|保|難|遲|待|待"],
+            [42, "吉", "無蹤亦無跡|遠近終難覓|平地起波瀾|所求終未得", "平地起波瀾，前路茫茫。保持平靜，雲霧散去轉機現。", "晚成|調養|難尋|遲至|暫緩|近可"],
+            [43, "大吉", "捷報已占魁|皇都得意回|青雲梯上步|高折桂枝開", "捷報奪魁，得意歸來。平步青雲，高折桂枝。", "大吉|癒|出|來|吉|吉"],
+            [44, "吉", "盤石圖前古|松篁長茂林|一朝逢匠手|無價是知音", "根基穩固，如松茂林。一朝遇識者，知音最無價。", "成|癒|出|來|吉|吉"],
+            [45, "大吉", "採藥天台路|溪山雲霧深|其中如得寶|脫卻凡俗心", "天台採藥，雲霧雖深。若得至寶，脫胎換骨。", "大吉|癒|出|來|吉|吉"],
+            [46, "凶", "雷發震天昏|佳人獨掩門|交加飛鳥道|無處避災瘟", "雷震天昏，獨守空門。災禍交加，無處迴避。", "凶|危|無|不來|凶|凶"],
+            [47, "吉", "更望身前立|東風引路開|改更還重望|福祿日邊來", "立身揚名，東風引路。改變方向，福祿將至。", "成|癒|出|來|吉|吉"],
+            [48, "小吉", "昆鳥秋來化|風輕翼倍加|一舉凌空去|高飛玩物華", "秋來鳥化，風輕翼展。一飛沖天，賞玩風華。", "晚成|癒|出|來|吉|吉"],
+            [49, "凶", "凍冰消水面|日出漸光輝|龍蛇猶尚滯|教道轉雲梯", "冰雖消，日雖出，但龍蛇尚滯，未能升天。", "待時|拖|難|遲|守|待"],
+            [50, "吉", "有定終須定|心危所事危|貴人皆指引|好處信疑遲", "定數已定，心危事危。幸有貴人引，好事在後頭。", "成|癒|出|來|吉|吉"],
+            [51, "凶", "修進甚艱難|勞心未得安|舟書空在水|龍臥失清潭", "修進艱難，勞心不安。如舟空轉，龍失深潭。", "難|拖|無|不來|凶|凶"],
+            [52, "凶", "月色被雲遮|雲深處處遮|看看光欲暗|卻是未周全", "月被雲遮，處處昏暗。光芒將盡，萬事未周。", "凶|長|無|不來|凶|凶"],
+            [53, "吉", "久困嘆塵埃|誰知意趣乖|一朝脫羅網|富貴出天台", "久困塵埃，事與願違。一朝脫困，富貴自來。", "先難後成|癒|出|來|吉|吉"],
+            [54, "凶", "夢中得寶玉|貪得轉無光|爭知花葉敗|那更雪風霜", "夢中得寶，貪多失光。花敗葉落，更遭風霜。", "虛幻|重|無|不來|凶|凶"],
+            [55, "吉", "父老傳音信|石中出美玉|庶人問求財|子母多相續", "長輩傳信，石中出玉。求財得利，利上滾利。", "成|癒|出|來|吉|吉"],
+            [56, "末吉", "生涯必有虧|約定不相隨|早月光猶暗|誰知霧散時", "生計有虧，約定難成。月光尚暗，待霧散時。", "守|保|難|遲|待|待"],
+            [57, "大吉", "樂之極矣悲|射鹿未乘機|其怪恐防損|前程有是非", "樂極生悲，射鹿失機。需防怪損，前程是非。（註：此籤雖名大吉，實含警惕，意在持盈保泰）", "謹慎|癒|出|來|守|守"],
+            [58, "小吉", "可嘆前途事|明珠在土埋|一朝光照徹|萬里見光彩", "前途可嘆，明珠埋土。一朝光透，萬里生輝。", "晚成|癒|出|來|吉|吉"],
+            [59, "凶", "杳杳無音信|道遠信難通|平地起風煙|草木盡霜紅", "音訊杳然，路遠難通。平地風煙，草木霜紅。", "難|危|無|不來|凶|凶"],
+            [60, "小吉", "高臺栽翠柳|濃綠幾千重|一步高一層|切須防缺空", "高台栽柳，綠意千重。步步高升，但防跌落。", "謹慎成|癒|出|來|吉|吉"],
+            [61, "大吉", "日上東方起|光明照萬方|家風生吉慶|樹葉茂芬芳", "旭日東昇，光照萬方。家運吉慶，枝繁葉茂。", "大吉|癒|出|來|吉|吉"],
+            [62, "大吉", "災遭去禍煩|家門生福苑|福海欲通津|金闕迎高選", "災去禍除，家生福苑。福如東海，金榜題名。", "大吉|癒|出|來|吉|吉"],
+            [63, "凶", "散財多怪異|憂患兩相欺|空船歸去客|前途恐是非", "散財怪異，憂患相欺。空船而歸，前途是非。", "損|重|無|不來|凶|凶"],
+            [64, "凶", "魚遊釜中水|火急甚燃眉|在路崩騰走|危難日日隨", "魚遊釜中，火燒眉毛。奔波勞碌，危難相隨。", "凶|急|無|不來|凶|凶"],
+            [65, "末吉", "苦病喜更醫|前途喜會期|不學無術客|一紙薦君知", "病喜得醫，前途有期。雖無學術，貴人推薦。", "漸癒|癒|出|來|吉|吉"],
+            [66, "凶", "水滯少波濤|飛鴻落羽毛|重憂心緒亂|閒事惹風騷", "水滯無波，鴻鳥落羽。憂心如焚，閒事惹禍。", "滯|長|無|不來|凶|凶"],
+            [67, "凶", "才發君心天|那知下塵埃|飛鴻常折翼|名利總成灰", "心比天高，身陷塵埃。飛鴻折翼，名利成灰。", "敗|重|無|不來|凶|凶"],
+            [68, "吉", "春谷變氣候|一舉起雷聲|身顯名傳遠|作事自作成", "春谷氣變，一雷驚人。身名遠揚，事事自成。", "成|癒|出|來|吉|吉"],
+            [69, "凶", "如鳥飛失翼|猛虎失山林|進退身無措|難會意中人", "鳥失雙翼，虎落平陽。進退失據，難會佳人。", "難|重|無|不來|凶|凶"],
+            [70, "吉", "雷發庭前草|炎火向天飛|一心來趕祿|爭奈掩朱扉", "雷驚庭草，火向天飛。一心求祿，奈何門閉。（註：此籤多解為先難後獲）", "晚成|癒|出|來|吉|吉"],
+            [71, "凶", "腳踏黃泥路|路通馬不前|家舍防災害|運氣未周圓", "腳踏泥濘，馬不前行。家防災害，運氣未圓。", "滯|長|無|不來|凶|凶"],
+            [72, "吉", "戶內防重厄|花果見分枝|嚴霜才過後|方始見光輝", "防家內厄，花果分枝。嚴霜過後，方見光輝。", "先苦後甘|癒|出|來|吉|吉"],
+            [73, "大吉", "久暗漸分明|登江綠水澄|芝書從天降|終得異人成", "久暗漸明，江水澄澈。詔書天降，得異人助。", "大吉|癒|出|來|吉|吉"],
+            [74, "大吉", "蛇身意欲化|春雨吸靈津|金鱗翻碧沼|玉角透青雲", "蛇欲化龍，吸飲春雨。金鱗翻騰，玉角透雲。", "大成|癒|出|來|吉|吉"],
+            [75, "凶", "宛如抱虎眠|惡事上心間|虛言生怪異|閒事惹官權", "如抱虎眠，惡事上心。虛言生怪，閒事惹官。", "危|險|無|不來|凶|凶"],
+            [76, "吉", "富貴天之授|何須苦用心|前程盡通達|珠玉滿衣襟", "富貴天授，不必苦求。前程通達，珠玉滿襟。", "成|癒|出|來|吉|吉"],
+            [77, "凶", "夢中如得寶|醒來都不見|山水路迢迢|若行多改換", "夢中得寶，醒來成空。山水迢迢，行路多變。", "虛|重|無|不來|凶|凶"],
+            [78, "吉", "雲開霧便散|好月照重樓|春風綠楊柳|無事可干休", "雲開霧散，月照重樓。春風楊柳，閒適無憂。", "成|癒|出|來|吉|吉"],
+            [79, "吉", "前途亦可營|萬事早完成|立身欲富貴|名譽得高榮", "前途可營，萬事早成。立身富貴，名譽高榮。", "成|癒|出|來|吉|吉"],
+            [80, "大吉", "深山多種玉|瓦石變黃金|一樹開花鮮|枝枝色耀心", "深山種玉，瓦石變金。一樹花開，枝枝耀眼。", "大吉|癒|出|來|吉|吉"],
+            [81, "小吉", "道合調琴瑟|玄陰鬼賊多|一途雖通達|含毒氣相和", "琴瑟雖和，小人暗害。路雖通達，氣氛含毒。", "慎防|調養|難|遲|守|吉"],
+            [82, "凶", "火發恐連天|屍骸遍野地|中間龍劍落|何事得周全", "火勢連天，屍骸遍野。龍劍失落，何事周全。", "大凶|危|無|不來|凶|凶"],
+            [83, "大吉", "我本天仙雷|偶來人世間|看看十二路|誰不羨神仙", "本是天仙，偶來人間。看遍世路，誰不羨慕。", "大吉|癒|出|來|吉|吉"],
+            [84, "凶", "否極方見泰|花發再重開|這事宜更改|名利恐招災", "否極泰來，花開重發。事宜更改，名利招災。", "改吉|長|無|不來|改|凶"],
+            [85, "凶", "一尾銜花鹿|周圍獵戶多|若離弓箭難|此去始中和", "鹿銜花走，獵戶圍伺。離弓箭難，方得中和。", "險|危|無|不來|避|凶"],
+            [86, "大吉", "春來花發枝|甘雨滋嫩葉|大振家聲處|祿爵自相隨", "春來花發，甘雨滋葉。大振家聲，祿爵相隨。", "大成|癒|出|來|吉|吉"],
+            [87, "大吉", "高山玉石中|良匠採連城|探地求賢士|羅衣衣錦榮", "高山玉石，連城之璧。求賢得士，衣錦還鄉。", "大吉|癒|出|來|吉|吉"],
+            [88, "吉", "威勢萬人頭|事事占上游|韶華今已至|束帛又封侯", "威勢過人，事事上游。韶華已至，封侯拜相。", "成|癒|出|來|吉|吉"],
+            [89, "大吉", "出入營謀大|朝中用賢士|一舉登高科|雙飛如鳳翅", "營謀宏大，朝中重賢。高登金榜，雙宿雙飛。", "大吉|癒|出|來|吉|吉"],
+            [90, "大吉", "一信向天飛|秦川舟自歸|前途成好事|應得貴人推", "喜信天飛，舟自歸來。前途好事，貴人推舉。", "大吉|癒|出|來|吉|吉"],
+            [91, "吉", "改變前途去|月桂又逢圓|雲中乘祿至|凡事可宜先", "改變前途，月桂重圓。雲中祿至，凡事搶先。", "成|癒|出|來|吉|吉"],
+            [92, "大吉", "自幼常為客|心勞意不寧|一朝逢好運|榮耀滿門庭", "自幼客居，心勞不寧。一朝運轉，榮耀滿門。", "大成|癒|出|來|吉|吉"],
+            [93, "吉", "有魚臨旱池|跳躍欲生機|一朝得春雨|濟化上天池", "旱池之魚，跳躍求生。得遇春雨，化龍上天。", "成|癒|出|來|吉|吉"],
+            [94, "半吉", "事親須孝敬|天意亦相扶|天然生福果|名利自然無", "孝敬父母，天意相扶。雖有福果，名利不顯。（知足常樂）", "平|癒|出|來|吉|吉"],
+            [95, "吉", "志氣功業在|名利亦相隨|一朝逢好運|龍虎鎮門楣", "志氣高昂，功業在望。好運一到，龍虎鎮門。", "成|癒|出|來|吉|吉"],
+            [96, "大吉", "雞犬相逢日|求君便得通|萬事皆如意|喜氣自然濃", "雞犬相逢，萬事亨通。事事如意，喜氣洋洋。", "大吉|癒|出|來|吉|吉"],
+            [97, "凶", "當風點巨燭|風吹燭欲滅|祭祀神不顯|良醫致病歇", "風中點燭，搖搖欲滅。神不顯靈，良醫束手。", "凶|危|無|不來|凶|凶"],
+            [98, "凶", "欲買桂花酒|爭奈小人何|庫中財物失|名利總蹉跎", "欲買美酒，奈何小人。庫中財失，名利蹉跎。", "損|重|無|不來|凶|凶"],
+            [99, "大吉", "紅日當門照|名利盡高升|貴人相引接|百事自然成", "紅日當門，名利高升。貴人接引，百事自成。", "大吉|癒|出|來|吉|吉"],
+            [100, "凶", "祿走白雲間|攜琴走遠山|不遇神仙面|空惹意闌珊", "祿隱雲間，攜琴歸山。不遇神仙，意興闌珊。", "無|危|無|不來|凶|凶"]
+        ];
+
+        // 將原始資料轉換為物件陣列
+        const omikujiData = rawData.map(item => {
+            const detailsArray = item[4].split('|');
+            return {
+                number: `第${item[0]}番`,
+                rank: item[1],
+                poem: item[2].split('|'),
+                explanation: item[3],
+                details: {
+                    "願望": detailsArray[0],
+                    "疾病": detailsArray[1],
+                    "失物": detailsArray[2],
+                    "等待的人": detailsArray[3],
+                    "搬家": detailsArray[4],
+                    "旅行": detailsArray[5]
+                }
+            };
+        });
+
+        let isDrawing = false;
+        const container = document.getElementById('kujiContainer');
+        const stick = document.getElementById('stick');
+        const stickText = document.getElementById('stickText');
+        const overlay = document.getElementById('overlay');
+        const resultContent = document.getElementById('resultContent');
+
+        // 將阿拉伯數字轉換為中文數字
+        function toChineseNum(num) {
+            const chineseNums = ['零', '一', '二', '三', '四', '五', '六', '七', '八', '九'];
+            const units = ['', '十', '百'];
+            let str = num.toString();
+            let result = '';
+            
+            if (num === 100) return '百';
+            if (num < 10) return chineseNums[num];
+            if (num < 20) return '十' + (num % 10 === 0 ? '' : chineseNums[num % 10]);
+            
+            let unitIndex = 0;
+            for (let i = str.length - 1; i >= 0; i--) {
+                const n = parseInt(str[i]);
+                if (unitIndex === 0) { // 個位
+                    if (n !== 0) result = chineseNums[n];
+                } else if (unitIndex === 1) { // 十位
+                    if (n !== 0) result = chineseNums[n] + '十' + result;
+                    else if (result !== '') result = '零' + result;
+                }
+                unitIndex++;
+            }
+            return result;
+        }
+
+        function getRandomOmikuji() {
+            return omikujiData[Math.floor(Math.random() * omikujiData.length)];
+        }
+
+        function drawOmikuji() {
+            if (isDrawing) return;
+            isDrawing = true;
+
+            container.classList.add('shaking');
+            
+            // 隨機抽取
+            const result = getRandomOmikuji();
+            
+            setTimeout(() => {
+                container.classList.remove('shaking');
+                
+                // 處理籤棒文字：去除 "第" 與 "番"，轉換為中文數字 (如 42 -> 四十二)
+                // 原始資料 number 格式為 "第42番"，我們先取出數字部分
+                const numStr = result.number.replace(/[^\d]/g, '');
+                const num = parseInt(numStr);
+                stickText.innerText = toChineseNum(num);
+                
+                stick.style.opacity = '1';
+                stick.style.transform = 'translateX(-50%) translateY(-130px)';
+                
+                setTimeout(() => {
+                    showResult(result);
+                }, 1000);
+
+            }, 1000);
+        }
+
+        function showResult(data) {
+            let detailsHtml = '';
+            for (const [key, value] of Object.entries(data.details)) {
+                detailsHtml += `
+                    <div class="detail-item">
+                        <span class="detail-label">${key}</span>
+                        <span class="detail-text">${value}</span>
+                    </div>
+                `;
+            }
+
+            resultContent.innerHTML = `
+                <div class="kuji-number">${data.number}</div>
+                <div class="kuji-rank">${data.rank}</div>
+                
+                <div class="poem-container">
+                    <div class="poem-section">
+                        ${data.poem.map(line => `<div class="poem-line">${line}</div>`).join('')}
+                    </div>
+                </div>
+
+                <div class="poem-explanation">
+                    <div class="explanation-title">【解說】</div>
+                    <p>${data.explanation}</p>
+                </div>
+
+                <div class="details-grid">
+                    ${detailsHtml}
+                </div>
+            `;
+
+            overlay.classList.add('active');
+        }
+
+        function closeResult() {
+            overlay.classList.remove('active');
+            
+            setTimeout(() => {
+                stick.style.transition = 'none';
+                stick.style.transform = 'translateX(-50%) translateY(0)';
+                stick.style.opacity = '0';
+                
+                setTimeout(() => {
+                    stick.style.transition = 'transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+                    isDrawing = false;
+                }, 50);
+            }, 500);
+        }
+    </script>
+</body>
+</html>
